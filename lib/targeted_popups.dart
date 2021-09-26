@@ -253,6 +253,8 @@ class TargetedPopupState extends State<TargetedPopup> {
   }
 }
 
+final String _kAllSeen = 'NO_KEY';
+
 /// Manages the triggering of TargetedPopups by providing ValueNotifiers based
 /// on keys such that each TargetedPopup is triggered, one by one, as the user
 /// dismisses them. Optionally, a set of keys of already seen TargetedPopups
@@ -266,47 +268,79 @@ class TargetedPopupState extends State<TargetedPopup> {
 ///
 /// Intended to be used with SharedPreferences or some similar tool.
 class TargetedPopupManager {
-  final String _kNoKey = 'NO_KEY';
-  LinkedHashMap<String, ValueNotifier<bool>> _popupMap = LinkedHashMap();
+  Map<String, _Page> _pageMap = {};
   Set<String> _seen = Set();
   ValueChanged<String>? onSeen;
 
-  TargetedPopupManager({
-    required List<String> targetIds,
-    List<String>? seen,
-    this.onSeen,
-  }) {
+  TargetedPopupManager({List<String>? seen, this.onSeen}) {
     if (seen != null) {
       _seen.addAll(seen);
     }
-    String firstUnseenId = _nextUnseenKey(targetIds, _seen);
-    targetIds.forEach((key) {
-      _popupMap[key] = ValueNotifier<bool>(key == firstUnseenId);
-      _popupMap[key]!.addListener(() {
-        if (!_popupMap[key]!.value) {
-          _seen.add(key);
-          _showNext();
-          if (onSeen != null) {
-            onSeen!(key);
-          }
+  }
+
+  ValueNotifier<bool> notifier(String page, String id) {
+    if (!_pageMap.containsKey(page)) {
+      throw 'There is no page $page';
+    }
+    if (!_pageMap[page]!.popupMap.containsKey(id)) {
+      throw 'There is no popup id $id';
+    }
+    return _pageMap[page]!.popupMap[id]!;
+  }
+
+  TargetedPopupManager addPage(String page, List<String> pageIds) {
+    _pageMap[page] = _Page(ids: pageIds, seen: _seen.contains, onSeen: _onSeen);
+    return this;
+  }
+
+  void _onSeen(String id) {
+    _seen.add(id);
+    if (onSeen != null) {
+      onSeen!(id);
+    }
+  }
+
+  void discover(String page) {
+    if (_pageMap.containsKey(page)) {
+      _pageMap[page]!.nextUnseen();
+    }
+  }
+
+  void dispose() {
+    _pageMap.values.forEach((page) => page.dispose());
+  }
+}
+
+class _Page {
+  final LinkedHashMap<String, ValueNotifier<bool>> _popupMap = LinkedHashMap();
+  late final bool Function(String) _seen;
+
+  _Page({
+    required List<String> ids,
+    required bool Function(String) seen,
+    required ValueChanged<String> onSeen,
+  }) {
+    _seen = seen;
+    String firstUnseen = ids.firstWhere((id) => !seen(id));
+    ids.forEach((id) {
+      _popupMap[id] = ValueNotifier<bool>(id == firstUnseen);
+      _popupMap[id]!.addListener(() {
+        if (!_popupMap[id]!.value) {
+          onSeen(id);
+          nextUnseen();
         }
       });
     });
   }
 
-  void _showNext() {
-    if (_popupMap.isNotEmpty) {
-      String key = _nextUnseenKey(_popupMap.keys, _seen);
-      if (key != _kNoKey) {
-        _popupMap[key]!.value = true;
-      }
+  LinkedHashMap<String, ValueNotifier<bool>> get popupMap => _popupMap;
+
+  void nextUnseen() {
+    String firstUnseen = _popupMap.keys.firstWhere((id) => !_seen(id));
+    if (firstUnseen != _kAllSeen) {
+      _popupMap[firstUnseen]!.value = true;
     }
   }
-
-  String _nextUnseenKey(Iterable<String> keys, Set<String> seen) =>
-      keys.firstWhere((key) => !seen.contains(key), orElse: () => _kNoKey);
-
-  ValueNotifier<bool>? getNotifier(String key) => _popupMap[key];
 
   void dispose() {
     _popupMap.values.forEach((notifier) {
