@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:animated_widgets/animated_widgets.dart';
+import 'package:mdi/mdi.dart';
 
 /// Location of the popup relative to its target
 enum PopupLocation { AboveLeft, AboveRight, BelowLeft, BelowRight }
@@ -29,7 +30,7 @@ enum PopupLocation { AboveLeft, AboveRight, BelowLeft, BelowRight }
 class TargetedPopup extends StatefulWidget {
   final Widget content;
   final bool wiggle;
-  final bool check;
+  final bool arrow;
   final Color? backgroundColor;
   final Duration period;
   final ValueNotifier<bool> notifier;
@@ -39,7 +40,7 @@ class TargetedPopup extends StatefulWidget {
     Key? key,
     required this.content,
     this.wiggle = true,
-    this.check = false,
+    this.arrow = true,
     this.backgroundColor,
     this.period = const Duration(milliseconds: 1000),
     required this.notifier,
@@ -103,25 +104,30 @@ class TargetedPopupState extends State<TargetedPopup> {
     late PopupLocation location;
     late double maxWidth;
     late double maxHeight;
+    late IconData iconData;
     if (spaceToLeft >= spaceToRight) {
       if (spaceAbove >= spaceBelow) {
         location = PopupLocation.AboveLeft;
         maxWidth = spaceToLeft + (_layerLink.leaderSize!.width / 2);
         maxHeight = spaceAbove;
+        iconData = Mdi.arrowBottomRight;
       } else {
         location = PopupLocation.BelowLeft;
         maxWidth = spaceToLeft + (_layerLink.leaderSize!.width / 2);
         maxHeight = spaceBelow;
+        iconData = Mdi.arrowTopRight;
       }
     } else {
       if (spaceAbove >= spaceBelow) {
         location = PopupLocation.AboveRight;
         maxWidth = spaceToRight + (_layerLink.leaderSize!.width / 2);
         maxHeight = spaceAbove;
+        iconData = Mdi.arrowBottomLeft;
       } else {
         location = PopupLocation.BelowRight;
         maxWidth = spaceToRight + (_layerLink.leaderSize!.width / 2);
         maxHeight = spaceBelow;
+        iconData = Mdi.arrowTopRight;
       }
     }
     maxWidth -= 24.0;
@@ -159,7 +165,7 @@ class TargetedPopupState extends State<TargetedPopup> {
                           fit: FlexFit.loose,
                           child: widget.content,
                         ),
-                        if (widget.check) Icon(Icons.check),
+                        if (widget.arrow) Icon(iconData),
                       ],
                     ),
                   ),
@@ -321,22 +327,26 @@ class _Page {
     required ValueChanged<String> onSeen,
   }) {
     _seen = seen;
-    String firstUnseen = ids.firstWhere((id) => !seen(id));
-    ids.forEach((id) {
-      _popupMap[id] = ValueNotifier<bool>(id == firstUnseen);
-      _popupMap[id]!.addListener(() {
-        if (!_popupMap[id]!.value) {
-          onSeen(id);
-          nextUnseen();
-        }
+    String firstUnseen =
+        ids.firstWhere((id) => !seen(id), orElse: () => _kAllSeen);
+    if (firstUnseen != _kAllSeen) {
+      ids.forEach((id) {
+        _popupMap[id] = ValueNotifier<bool>(id == firstUnseen);
+        _popupMap[id]!.addListener(() {
+          if (!_popupMap[id]!.value) {
+            onSeen(id);
+            nextUnseen();
+          }
+        });
       });
-    });
+    }
   }
 
   LinkedHashMap<String, ValueNotifier<bool>> get popupMap => _popupMap;
 
   void nextUnseen() {
-    String firstUnseen = _popupMap.keys.firstWhere((id) => !_seen(id));
+    String firstUnseen =
+        _popupMap.keys.firstWhere((id) => !_seen(id), orElse: () => _kAllSeen);
     if (firstUnseen != _kAllSeen) {
       _popupMap[firstUnseen]!.value = true;
     }
