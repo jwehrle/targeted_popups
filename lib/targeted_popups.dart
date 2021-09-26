@@ -273,12 +273,13 @@ class TargetedPopupManager {
 
   TargetedPopupManager({
     required List<String> targetIds,
-    List<String> seen = const <String>[],
+    List<String>? seen,
     this.onSeen,
   }) {
-    _seen.addAll(seen);
-    String firstUnseenId = targetIds.firstWhere((key) => !_seen.contains(key),
-        orElse: () => _kNoKey);
+    if (seen != null) {
+      _seen.addAll(seen);
+    }
+    String firstUnseenId = _nextUnseenKey(targetIds, _seen);
     targetIds.forEach((key) {
       _popupMap[key] = ValueNotifier<bool>(key == firstUnseenId);
       _popupMap[key]!.addListener(() {
@@ -295,13 +296,15 @@ class TargetedPopupManager {
 
   void _showNext() {
     if (_popupMap.isNotEmpty) {
-      String key = _popupMap.keys
-          .firstWhere((key) => !_seen.contains(key), orElse: () => _kNoKey);
+      String key = _nextUnseenKey(_popupMap.keys, _seen);
       if (key != _kNoKey) {
         _popupMap[key]!.value = true;
       }
     }
   }
+
+  String _nextUnseenKey(Iterable<String> keys, Set<String> seen) =>
+      keys.firstWhere((key) => !seen.contains(key), orElse: () => _kNoKey);
 
   ValueNotifier<bool>? getNotifier(String key) => _popupMap[key];
 
