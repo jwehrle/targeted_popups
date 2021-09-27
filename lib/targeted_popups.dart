@@ -67,7 +67,7 @@ class TargetedPopupState extends State<TargetedPopup>
       value: 0, // initially not visible
     );
     if (widget.notifier.value) {
-      _showOverlay();
+      SchedulerBinding.instance?.addPostFrameCallback((_) => _showOverlay());
     }
     widget.notifier.addListener(() {
       _showOverlay();
