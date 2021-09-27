@@ -125,9 +125,10 @@ class TargetedPopupState extends State<TargetedPopup>
     final Color foregroundColor = widget.foregroundColor ??
         floatingActionButtonTheme.foregroundColor ??
         theme.colorScheme.onSecondary;
-    final TextStyle textStyle = theme.textTheme.button!.copyWith(
+    final TextStyle textStyle = theme.textTheme.bodyText2!.copyWith(
       color: foregroundColor,
       letterSpacing: 1.2,
+      height: 1.2,
     );
     return OverlayEntry(builder: (context) {
       return Positioned(
