@@ -92,46 +92,16 @@ class TargetedPopupState extends State<TargetedPopup> {
   OverlayEntry _createOverlayEntry() {
     Size screenSize = MediaQuery.of(context).size;
     EdgeInsets edgeInsets = MediaQuery.of(context).padding;
-    double width = screenSize.width - (edgeInsets.right + edgeInsets.left);
-    double height = screenSize.height - (edgeInsets.bottom + edgeInsets.top);
-    var offset = _layerLink.leader!.offset;
-    double xLoc = offset.dx;
-    double yLoc = offset.dy;
-    double spaceToLeft = xLoc;
-    double spaceToRight = width - (xLoc + (_layerLink.leaderSize!.width));
-    double spaceAbove = yLoc - kToolbarHeight;
-    double spaceBelow = height - (yLoc + (_layerLink.leaderSize!.height));
-    late PopupLocation location;
-    late double maxWidth;
-    late double maxHeight;
-    late IconData iconData;
-    if (spaceToLeft >= spaceToRight) {
-      if (spaceAbove >= spaceBelow) {
-        location = PopupLocation.AboveLeft;
-        maxWidth = spaceToLeft + (_layerLink.leaderSize!.width / 2);
-        maxHeight = spaceAbove;
-        iconData = Mdi.arrowBottomRight;
-      } else {
-        location = PopupLocation.BelowLeft;
-        maxWidth = spaceToLeft + (_layerLink.leaderSize!.width / 2);
-        maxHeight = spaceBelow;
-        iconData = Mdi.arrowTopRight;
-      }
-    } else {
-      if (spaceAbove >= spaceBelow) {
-        location = PopupLocation.AboveRight;
-        maxWidth = spaceToRight + (_layerLink.leaderSize!.width / 2);
-        maxHeight = spaceAbove;
-        iconData = Mdi.arrowBottomLeft;
-      } else {
-        location = PopupLocation.BelowRight;
-        maxWidth = spaceToRight + (_layerLink.leaderSize!.width / 2);
-        maxHeight = spaceBelow;
-        iconData = Mdi.arrowTopRight;
-      }
-    }
-    maxWidth -= 24.0;
-    maxHeight -= 24.0;
+    double sw = screenSize.width - (edgeInsets.right + edgeInsets.left);
+    double sh = screenSize.height - (edgeInsets.bottom + edgeInsets.top);
+    Offset offset = _layerLink.leader!.offset;
+    _Orientation _orientation = _Orientation(
+      spaceToLeft: offset.dx,
+      spaceToRight: sw - (offset.dx + (_layerLink.leaderSize!.width)),
+      spaceAbove: offset.dy - kToolbarHeight,
+      spaceBelow: sh - (offset.dy + (_layerLink.leaderSize!.height)),
+      leaderSize: _layerLink.leaderSize!,
+    );
     Color background = widget.backgroundColor == null
         ? Theme.of(context).accentColor
         : widget.backgroundColor!;
@@ -140,17 +110,17 @@ class TargetedPopupState extends State<TargetedPopup> {
         top: 0.0,
         left: 0.0,
         child: CompositedTransformFollower(
-          targetAnchor: _targetAnchor(location),
-          followerAnchor: _followerAnchor(location),
+          targetAnchor: _orientation.targetAnchor,
+          followerAnchor: _orientation.followerAnchor,
           link: _layerLink,
           child: Container(
-            constraints: BoxConstraints.loose(Size(maxWidth, maxHeight)),
+            constraints: BoxConstraints.loose(_orientation.size),
             child: ShakeAnimatedWidget(
               enabled: widget.wiggle,
               duration: widget.period,
               child: Card(
                 shape: RoundedRectangleBorder(
-                  borderRadius: _borderRadius(location),
+                  borderRadius: _orientation.borderRadius,
                 ),
                 elevation: 12.0,
                 color: background,
@@ -160,12 +130,13 @@ class TargetedPopupState extends State<TargetedPopup> {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: _orientation.crossAxisAlignment,
                       children: [
                         Flexible(
                           fit: FlexFit.loose,
                           child: widget.content,
                         ),
-                        if (widget.arrow) Icon(iconData),
+                        if (widget.arrow) Icon(_orientation.iconData),
                       ],
                     ),
                   ),
@@ -176,59 +147,6 @@ class TargetedPopupState extends State<TargetedPopup> {
         ),
       );
     });
-  }
-
-  Alignment _targetAnchor(PopupLocation location) {
-    switch (location) {
-      case PopupLocation.AboveLeft:
-      case PopupLocation.AboveRight:
-        return Alignment.topCenter;
-      case PopupLocation.BelowLeft:
-      case PopupLocation.BelowRight:
-        return Alignment.bottomCenter;
-    }
-  }
-
-  Alignment _followerAnchor(PopupLocation location) {
-    switch (location) {
-      case PopupLocation.AboveLeft:
-        return Alignment.bottomRight;
-      case PopupLocation.AboveRight:
-        return Alignment.bottomLeft;
-      case PopupLocation.BelowLeft:
-        return Alignment.topRight;
-      case PopupLocation.BelowRight:
-        return Alignment.topLeft;
-    }
-  }
-
-  BorderRadius _borderRadius(PopupLocation location) {
-    switch (location) {
-      case PopupLocation.AboveLeft:
-        return BorderRadius.only(
-          topLeft: Radius.circular(16.0),
-          topRight: Radius.circular(16.0),
-          bottomLeft: Radius.circular(16.0),
-        );
-      case PopupLocation.AboveRight:
-        return BorderRadius.only(
-          topLeft: Radius.circular(16.0),
-          topRight: Radius.circular(16.0),
-          bottomRight: Radius.circular(16.0),
-        );
-      case PopupLocation.BelowLeft:
-        return BorderRadius.only(
-          topLeft: Radius.circular(16.0),
-          bottomRight: Radius.circular(16.0),
-          bottomLeft: Radius.circular(16.0),
-        );
-      case PopupLocation.BelowRight:
-        return BorderRadius.only(
-          bottomRight: Radius.circular(16.0),
-          topRight: Radius.circular(16.0),
-          bottomLeft: Radius.circular(16.0),
-        );
-    }
   }
 
   void _onSeen() {
@@ -246,17 +164,113 @@ class TargetedPopupState extends State<TargetedPopup> {
     });
     _overlayHolder.clear();
   }
+}
 
-  Size textSize(BuildContext context, String message) {
-    return (TextPainter(
-            text: TextSpan(
-                text: message, style: Theme.of(context).textTheme.bodyText2),
-            maxLines: 1,
-            textScaleFactor: MediaQuery.of(context).textScaleFactor,
-            textDirection: TextDirection.ltr)
-          ..layout())
-        .size;
+class _Orientation {
+  final double _kPadding = 24.0;
+  final Radius _kRadius = Radius.circular(16.0);
+  late final double _maxWidth;
+  late final double _maxHeight;
+  late final IconData _iconData;
+  late final CrossAxisAlignment _crossAxisAlignment;
+  late final Alignment _targetAnchor;
+  late final Alignment _followerAnchor;
+  late final BorderRadius _borderRadius;
+  late final Size _size;
+
+  IconData get iconData => _iconData;
+
+  _Orientation({
+    required double spaceToLeft,
+    required double spaceToRight,
+    required double spaceAbove,
+    required double spaceBelow,
+    required Size leaderSize,
+  }) {
+    double halfLeaderWidth = leaderSize.width / 2.0;
+    if (spaceToLeft >= spaceToRight) {
+      _maxWidth = _width(spaceToLeft, halfLeaderWidth);
+      if (spaceAbove >= spaceBelow) {
+        _assignFromLocation(PopupLocation.AboveLeft, spaceAbove, spaceBelow);
+      } else {
+        _assignFromLocation(PopupLocation.BelowLeft, spaceAbove, spaceBelow);
+      }
+    } else {
+      _maxWidth = _width(spaceToRight, halfLeaderWidth);
+      if (spaceAbove >= spaceBelow) {
+        _assignFromLocation(PopupLocation.AboveRight, spaceAbove, spaceBelow);
+      } else {
+        _assignFromLocation(PopupLocation.BelowRight, spaceAbove, spaceBelow);
+      }
+    }
+    _size = Size(_maxWidth, _maxHeight);
   }
+
+  double _width(double space, double halfLeaderWidth) =>
+      space + halfLeaderWidth - _kPadding;
+
+  void _assignFromLocation(PopupLocation loc, double above, double below) {
+    switch (loc) {
+      case PopupLocation.AboveLeft:
+        _maxHeight = above - _kPadding;
+        _iconData = Mdi.arrowBottomRight;
+        _crossAxisAlignment = CrossAxisAlignment.end;
+        _targetAnchor = Alignment.topCenter;
+        _followerAnchor = Alignment.bottomRight;
+        _borderRadius = BorderRadius.only(
+          topLeft: _kRadius,
+          topRight: _kRadius,
+          bottomLeft: _kRadius,
+        );
+        break;
+      case PopupLocation.AboveRight:
+        _maxHeight = above - _kPadding;
+        _iconData = Mdi.arrowBottomLeft;
+        _crossAxisAlignment = CrossAxisAlignment.end;
+        _targetAnchor = Alignment.topCenter;
+        _followerAnchor = Alignment.bottomLeft;
+        _borderRadius = BorderRadius.only(
+          topLeft: _kRadius,
+          topRight: _kRadius,
+          bottomRight: _kRadius,
+        );
+        break;
+      case PopupLocation.BelowLeft:
+        _maxHeight = below - _kPadding;
+        _iconData = Mdi.arrowTopRight;
+        _crossAxisAlignment = CrossAxisAlignment.start;
+        _targetAnchor = Alignment.bottomCenter;
+        _followerAnchor = Alignment.topRight;
+        _borderRadius = BorderRadius.only(
+          topLeft: _kRadius,
+          bottomRight: _kRadius,
+          bottomLeft: _kRadius,
+        );
+        break;
+      case PopupLocation.BelowRight:
+        _maxHeight = below - _kPadding;
+        _iconData = Mdi.arrowTopRight;
+        _crossAxisAlignment = CrossAxisAlignment.start;
+        _targetAnchor = Alignment.bottomCenter;
+        _followerAnchor = Alignment.topLeft;
+        _borderRadius = BorderRadius.only(
+          bottomRight: _kRadius,
+          topRight: _kRadius,
+          bottomLeft: _kRadius,
+        );
+        break;
+    }
+  }
+
+  CrossAxisAlignment get crossAxisAlignment => _crossAxisAlignment;
+
+  Alignment get targetAnchor => _targetAnchor;
+
+  Alignment get followerAnchor => _followerAnchor;
+
+  BorderRadius get borderRadius => _borderRadius;
+
+  Size get size => _size;
 }
 
 final String _kAllSeen = 'NO_KEY';
