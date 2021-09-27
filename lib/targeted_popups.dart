@@ -28,10 +28,11 @@ enum PopupLocation { AboveLeft, AboveRight, BelowLeft, BelowRight }
 ///
 /// Intended to work with the TargetedPopupManager (see below)
 class TargetedPopup extends StatefulWidget {
-  final Widget content;
+  final String content;
   final bool wiggle;
   final bool arrow;
   final Color? backgroundColor;
+  final Color? foregroundColor;
   final Duration period;
   final ValueNotifier<bool> notifier;
   final Widget target;
@@ -42,6 +43,7 @@ class TargetedPopup extends StatefulWidget {
     this.wiggle = true,
     this.arrow = true,
     this.backgroundColor,
+    this.foregroundColor,
     this.period = const Duration(milliseconds: 1000),
     required this.notifier,
     required this.target,
@@ -90,8 +92,9 @@ class TargetedPopupState extends State<TargetedPopup> {
   }
 
   OverlayEntry _createOverlayEntry() {
-    Size screenSize = MediaQuery.of(context).size;
-    EdgeInsets edgeInsets = MediaQuery.of(context).padding;
+    var media = MediaQuery.of(context);
+    Size screenSize = media.size;
+    EdgeInsets edgeInsets = media.padding;
     double sw = screenSize.width - (edgeInsets.right + edgeInsets.left);
     double sh = screenSize.height - (edgeInsets.bottom + edgeInsets.top);
     Offset offset = _layerLink.leader!.offset;
@@ -102,9 +105,19 @@ class TargetedPopupState extends State<TargetedPopup> {
       spaceBelow: sh - (offset.dy + (_layerLink.leaderSize!.height)),
       leaderSize: _layerLink.leaderSize!,
     );
+    final ThemeData theme = Theme.of(context);
     Color background = widget.backgroundColor == null
-        ? Theme.of(context).accentColor
+        ? theme.accentColor
         : widget.backgroundColor!;
+    final FloatingActionButtonThemeData floatingActionButtonTheme =
+        theme.floatingActionButtonTheme;
+    final Color foregroundColor = widget.foregroundColor ??
+        floatingActionButtonTheme.foregroundColor ??
+        theme.colorScheme.onSecondary;
+    final TextStyle textStyle = theme.textTheme.button!.copyWith(
+      color: foregroundColor,
+      letterSpacing: 1.2,
+    );
     return OverlayEntry(builder: (context) {
       return Positioned(
         top: 0.0,
@@ -130,14 +143,28 @@ class TargetedPopupState extends State<TargetedPopup> {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: _orientation.crossAxisAlignment,
-                      children: [
-                        Flexible(
-                          fit: FlexFit.loose,
-                          child: widget.content,
-                        ),
-                        if (widget.arrow) Icon(_orientation.iconData),
-                      ],
+                      children: widget.arrow
+                          ? _orientation.childOrder(
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: Text(
+                                  widget.content,
+                                  style: textStyle,
+                                ),
+                              ),
+                              Icon(
+                                _orientation.iconData,
+                                color: foregroundColor,
+                              ))
+                          : [
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: Text(
+                                  widget.content,
+                                  style: textStyle,
+                                ),
+                              ),
+                            ],
                     ),
                   ),
                 ),
@@ -169,10 +196,11 @@ class TargetedPopupState extends State<TargetedPopup> {
 class _Orientation {
   final double _kPadding = 24.0;
   final Radius _kRadius = Radius.circular(16.0);
+
+  late final PopupLocation _location;
   late final double _maxWidth;
   late final double _maxHeight;
   late final IconData _iconData;
-  late final CrossAxisAlignment _crossAxisAlignment;
   late final Alignment _targetAnchor;
   late final Alignment _followerAnchor;
   late final BorderRadius _borderRadius;
@@ -210,11 +238,11 @@ class _Orientation {
       space + halfLeaderWidth - _kPadding;
 
   void _assignFromLocation(PopupLocation loc, double above, double below) {
+    _location = loc;
     switch (loc) {
       case PopupLocation.AboveLeft:
         _maxHeight = above - _kPadding;
         _iconData = Mdi.arrowBottomRight;
-        _crossAxisAlignment = CrossAxisAlignment.end;
         _targetAnchor = Alignment.topCenter;
         _followerAnchor = Alignment.bottomRight;
         _borderRadius = BorderRadius.only(
@@ -226,7 +254,6 @@ class _Orientation {
       case PopupLocation.AboveRight:
         _maxHeight = above - _kPadding;
         _iconData = Mdi.arrowBottomLeft;
-        _crossAxisAlignment = CrossAxisAlignment.end;
         _targetAnchor = Alignment.topCenter;
         _followerAnchor = Alignment.bottomLeft;
         _borderRadius = BorderRadius.only(
@@ -238,7 +265,6 @@ class _Orientation {
       case PopupLocation.BelowLeft:
         _maxHeight = below - _kPadding;
         _iconData = Mdi.arrowTopRight;
-        _crossAxisAlignment = CrossAxisAlignment.start;
         _targetAnchor = Alignment.bottomCenter;
         _followerAnchor = Alignment.topRight;
         _borderRadius = BorderRadius.only(
@@ -249,8 +275,7 @@ class _Orientation {
         break;
       case PopupLocation.BelowRight:
         _maxHeight = below - _kPadding;
-        _iconData = Mdi.arrowTopRight;
-        _crossAxisAlignment = CrossAxisAlignment.start;
+        _iconData = Mdi.arrowTopLeft;
         _targetAnchor = Alignment.bottomCenter;
         _followerAnchor = Alignment.topLeft;
         _borderRadius = BorderRadius.only(
@@ -262,7 +287,30 @@ class _Orientation {
     }
   }
 
-  CrossAxisAlignment get crossAxisAlignment => _crossAxisAlignment;
+  List<Widget> childOrder(Widget content, Widget arrow) {
+    switch (_location) {
+      case PopupLocation.AboveLeft:
+      case PopupLocation.BelowLeft:
+        return [
+          content,
+          Padding(
+            padding: EdgeInsets.only(left: 16.0),
+          ),
+          arrow
+        ];
+      case PopupLocation.AboveRight:
+      case PopupLocation.BelowRight:
+        return [
+          arrow,
+          Padding(
+            padding: EdgeInsets.only(left: 16.0),
+          ),
+          content
+        ];
+    }
+  }
+
+  PopupLocation get location => _location;
 
   Alignment get targetAnchor => _targetAnchor;
 

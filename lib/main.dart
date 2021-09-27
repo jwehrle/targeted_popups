@@ -59,8 +59,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               TargetedPopup(
                 notifier: manager.notifier('home', '0'),
-                content: Text('Lorem ipsum dolor sit amet.'),
-                backgroundColor: Colors.lightGreenAccent,
+                content: 'Lorem ipsum dolor sit amet.',
                 target: Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.deepPurple),
@@ -70,8 +69,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               TargetedPopup(
                 notifier: manager.notifier('home', '1'),
-                content: Text('Lorem ipsum dolor sit amet.'),
-                backgroundColor: Colors.lightGreenAccent,
+                content: 'Lorem ipsum dolor sit amet.',
                 target: Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.deepPurple),
