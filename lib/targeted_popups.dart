@@ -53,16 +53,25 @@ class TargetedPopup extends StatefulWidget {
   TargetedPopupState createState() => TargetedPopupState();
 }
 
-class TargetedPopupState extends State<TargetedPopup> {
-  List<OverlayEntry> _overlayHolder = [];
+class TargetedPopupState extends State<TargetedPopup>
+    with SingleTickerProviderStateMixin {
+  final List<OverlayEntry> _overlayHolder = [];
   final LayerLink _layerLink = LayerLink();
+  late final AnimationController _controller;
 
   @override
   void initState() {
+    _controller = AnimationController(
+      vsync: this,
+      duration: kThemeAnimationDuration,
+      value: 0, // initially not visible
+    );
     if (widget.notifier.value) {
       _showOverlay();
     }
-    widget.notifier.addListener(_showOverlay);
+    widget.notifier.addListener(() {
+      _showOverlay();
+    });
     super.initState();
   }
 
@@ -79,12 +88,14 @@ class TargetedPopupState extends State<TargetedPopup> {
     if (_overlayHolder.isNotEmpty) {
       _removeDisposeEntries();
     }
+    _controller.dispose();
     super.dispose();
   }
 
   void _showOverlay() {
     if (widget.notifier.value) {
       SchedulerBinding.instance?.addPostFrameCallback((timeStamp) {
+        _controller.forward();
         _overlayHolder.add(_createOverlayEntry());
         Overlay.of(context)!.insert(_overlayHolder.first);
       });
@@ -126,45 +137,48 @@ class TargetedPopupState extends State<TargetedPopup> {
           targetAnchor: _orientation.targetAnchor,
           followerAnchor: _orientation.followerAnchor,
           link: _layerLink,
-          child: Container(
-            constraints: BoxConstraints.loose(_orientation.size),
-            child: ShakeAnimatedWidget(
-              enabled: widget.wiggle,
-              duration: widget.period,
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: _orientation.borderRadius,
-                ),
-                elevation: 12.0,
-                color: background,
-                child: InkWell(
-                  onTap: _overlayHolder.isNotEmpty ? _onSeen : null,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: widget.arrow
-                          ? _orientation.childOrder(
-                              Flexible(
-                                fit: FlexFit.loose,
-                                child: Text(
-                                  widget.content,
-                                  style: textStyle,
+          child: FadeScaleAnimatedWidget(
+            controller: _controller,
+            child: Container(
+              constraints: BoxConstraints.loose(_orientation.size),
+              child: ShakeAnimatedWidget(
+                enabled: widget.wiggle,
+                duration: widget.period,
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: _orientation.borderRadius,
+                  ),
+                  elevation: 12.0,
+                  color: background,
+                  child: InkWell(
+                    onTap: _overlayHolder.isNotEmpty ? _onSeen : null,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: widget.arrow
+                            ? _orientation.childOrder(
+                                Flexible(
+                                  fit: FlexFit.loose,
+                                  child: Text(
+                                    widget.content,
+                                    style: textStyle,
+                                  ),
                                 ),
-                              ),
-                              Icon(
-                                _orientation.iconData,
-                                color: foregroundColor,
-                              ))
-                          : [
-                              Flexible(
-                                fit: FlexFit.loose,
-                                child: Text(
-                                  widget.content,
-                                  style: textStyle,
+                                Icon(
+                                  _orientation.iconData,
+                                  color: foregroundColor,
+                                ))
+                            : [
+                                Flexible(
+                                  fit: FlexFit.loose,
+                                  child: Text(
+                                    widget.content,
+                                    style: textStyle,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                      ),
                     ),
                   ),
                 ),
@@ -177,9 +191,16 @@ class TargetedPopupState extends State<TargetedPopup> {
   }
 
   void _onSeen() {
-    setState(() {
-      _removeDisposeEntries();
-      widget.notifier.value = false;
+    _controller.reverse().then((ticker) {
+      setState(() {
+        _removeDisposeEntries();
+        widget.notifier.value = false;
+      });
+    }).catchError((e) {
+      setState(() {
+        _removeDisposeEntries();
+        widget.notifier.value = false;
+      });
     });
   }
 
@@ -190,6 +211,28 @@ class TargetedPopupState extends State<TargetedPopup> {
       }
     });
     _overlayHolder.clear();
+  }
+}
+
+class FadeScaleAnimatedWidget extends StatelessWidget {
+  final AnimationController controller;
+  final Widget child;
+
+  const FadeScaleAnimatedWidget({
+    Key? key,
+    required this.controller,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: controller,
+      child: ScaleTransition(
+        scale: controller,
+        child: child,
+      ),
+    );
   }
 }
 
