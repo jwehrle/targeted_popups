@@ -95,6 +95,9 @@ class TargetedPopupState extends State<TargetedPopup>
   void _showOverlay() {
     if (widget.notifier.value) {
       SchedulerBinding.instance?.addPostFrameCallback((timeStamp) {
+        if (_layerLink.leader == null) {
+          return;
+        }
         _controller.forward();
         _overlayHolder.add(_createOverlayEntry());
         Overlay.of(context)!.insert(_overlayHolder.first);
@@ -445,6 +448,8 @@ class _Page {
           }
         });
       });
+    } else {
+      ids.forEach((id) => ValueNotifier<bool>(false));
     }
   }
 
