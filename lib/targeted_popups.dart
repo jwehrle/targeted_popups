@@ -449,7 +449,7 @@ class _Page {
         });
       });
     } else {
-      ids.forEach((id) => ValueNotifier<bool>(false));
+      ids.forEach((id) => _popupMap[id] = ValueNotifier<bool>(false));
     }
   }
 
