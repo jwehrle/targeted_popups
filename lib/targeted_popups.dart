@@ -55,7 +55,7 @@ class TargetedPopup extends StatefulWidget {
 }
 
 class TargetedPopupState extends State<TargetedPopup>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware {
   OverlayEntry? _overlayEntry;
   final LayerLink _layerLink = LayerLink();
   late final AnimationController _controller;
@@ -82,18 +82,7 @@ class TargetedPopupState extends State<TargetedPopup>
   Widget build(BuildContext context) {
     return CompositedTransformTarget(
       link: _layerLink,
-      child: VisibilityDetector(
-        key: UniqueKey(),
-        onVisibilityChanged: (visInfo) {
-          if (visInfo.visibleFraction != 1.0 && _isOverlayPresent()) {
-            _removeOverlay();
-          }
-          if (visInfo.visibleFraction == 1.0 && widget.notifier.value) {
-            _scheduleShowOverlay();
-          }
-        },
-        child: widget.target,
-      ),
+      child: widget.target,
     );
   }
 
@@ -102,6 +91,18 @@ class TargetedPopupState extends State<TargetedPopup>
     _removeOverlay();
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  didPush() {
+    _removeOverlay();
+  }
+
+  @override
+  didPopNext() {
+    if (widget.notifier.value) {
+      _scheduleShowOverlay();
+    }
   }
 
   bool _isOverlayPresent() {
