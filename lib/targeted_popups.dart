@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:animated_widgets/animated_widgets.dart';
 import 'package:mdi/mdi.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// Location of the popup relative to its target
 enum PopupLocation { AboveLeft, AboveRight, BelowLeft, BelowRight }
@@ -55,7 +56,7 @@ class TargetedPopup extends StatefulWidget {
 
 class TargetedPopupState extends State<TargetedPopup>
     with SingleTickerProviderStateMixin {
-  final List<OverlayEntry> _overlayHolder = [];
+  OverlayEntry? _overlayEntry;
   final LayerLink _layerLink = LayerLink();
   late final AnimationController _controller;
 
@@ -67,10 +68,12 @@ class TargetedPopupState extends State<TargetedPopup>
       value: 0, // initially not visible
     );
     if (widget.notifier.value) {
-      SchedulerBinding.instance?.addPostFrameCallback((_) => _showOverlay());
+      _scheduleShowOverlay();
     }
     widget.notifier.addListener(() {
-      _showOverlay();
+      if (widget.notifier.value) {
+        _scheduleShowOverlay();
+      }
     });
     super.initState();
   }
@@ -79,30 +82,53 @@ class TargetedPopupState extends State<TargetedPopup>
   Widget build(BuildContext context) {
     return CompositedTransformTarget(
       link: _layerLink,
-      child: widget.target,
+      child: VisibilityDetector(
+        key: UniqueKey(),
+        onVisibilityChanged: (visInfo) {
+          if (visInfo.visibleFraction != 1.0 && _isOverlayPresent()) {
+            _removeOverlay();
+          }
+        },
+        child: widget.target,
+      ),
     );
   }
 
   @override
-  dispose() {
-    if (_overlayHolder.isNotEmpty) {
-      _removeDisposeEntries();
+  void didUpdateWidget(covariant TargetedPopup oldWidget) {
+    if (widget.notifier.value) {
+      _scheduleShowOverlay();
     }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  dispose() {
+    _removeOverlay();
     _controller.dispose();
     super.dispose();
   }
 
-  void _showOverlay() {
-    if (widget.notifier.value) {
+  bool _isOverlayPresent() {
+    return _overlayEntry != null;
+  }
+
+  void _scheduleShowOverlay() {
+    if (!_isOverlayPresent()) {
       SchedulerBinding.instance?.addPostFrameCallback((timeStamp) {
         if (_layerLink.leader == null) {
           return;
         }
         _controller.forward();
-        _overlayHolder.add(_createOverlayEntry());
-        Overlay.of(context)!.insert(_overlayHolder.first);
+        _overlayEntry = _createOverlayEntry();
+        Overlay.of(context)!.insert(_overlayEntry!);
       });
     }
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
   }
 
   OverlayEntry _createOverlayEntry() {
@@ -155,7 +181,7 @@ class TargetedPopupState extends State<TargetedPopup>
                   elevation: 12.0,
                   color: background,
                   child: InkWell(
-                    onTap: _overlayHolder.isNotEmpty ? _onSeen : null,
+                    onTap: _onSeen,
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Row(
@@ -197,24 +223,15 @@ class TargetedPopupState extends State<TargetedPopup>
   void _onSeen() {
     _controller.reverse().then((ticker) {
       setState(() {
-        _removeDisposeEntries();
+        _removeOverlay();
         widget.notifier.value = false;
       });
     }).catchError((e) {
       setState(() {
-        _removeDisposeEntries();
+        _removeOverlay();
         widget.notifier.value = false;
       });
     });
-  }
-
-  void _removeDisposeEntries() {
-    _overlayHolder.forEach((entry) {
-      if (entry.mounted) {
-        entry.remove();
-      }
-    });
-    _overlayHolder.clear();
   }
 }
 
