@@ -59,6 +59,7 @@ class TargetedPopupState extends State<TargetedPopup>
   OverlayEntry? _overlayEntry;
   final LayerLink _layerLink = LayerLink();
   late final AnimationController _controller;
+  final UniqueKey _key = UniqueKey();
 
   @override
   void initState() {
@@ -83,23 +84,18 @@ class TargetedPopupState extends State<TargetedPopup>
     return CompositedTransformTarget(
       link: _layerLink,
       child: VisibilityDetector(
-        key: UniqueKey(),
+        key: _key,
         onVisibilityChanged: (visInfo) {
           if (visInfo.visibleFraction != 1.0 && _isOverlayPresent()) {
             _removeOverlay();
+          }
+          if (visInfo.visibleFraction == 1.0 && widget.notifier.value) {
+            _scheduleShowOverlay();
           }
         },
         child: widget.target,
       ),
     );
-  }
-
-  @override
-  void didUpdateWidget(covariant TargetedPopup oldWidget) {
-    if (widget.notifier.value) {
-      _scheduleShowOverlay();
-    }
-    super.didUpdateWidget(oldWidget);
   }
 
   @override
