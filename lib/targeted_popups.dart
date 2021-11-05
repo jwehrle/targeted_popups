@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:animated_widgets/animated_widgets.dart';
 import 'package:mdi/mdi.dart';
-import 'package:visibility_detector/visibility_detector.dart';
+//import 'package:visibility_detector/visibility_detector.dart';
 
 /// Location of the popup relative to its target
 enum PopupLocation { AboveLeft, AboveRight, BelowLeft, BelowRight }
@@ -94,8 +94,9 @@ class TargetedPopupState extends State<TargetedPopup>
   }
 
   @override
-  didPush() {
+  void didPushNext() {
     _removeOverlay();
+    super.didPushNext();
   }
 
   @override
@@ -103,6 +104,7 @@ class TargetedPopupState extends State<TargetedPopup>
     if (widget.notifier.value) {
       _scheduleShowOverlay();
     }
+    super.didPopNext();
   }
 
   bool _isOverlayPresent() {
