@@ -115,6 +115,8 @@ class TargetedPopupState extends State<TargetedPopup>
         _overlayEntry = _createOverlayEntry();
         Overlay.of(context)!.insert(_overlayEntry!);
       });
+    } else {
+      _overlayEntry!.markNeedsBuild();
     }
   }
 
