@@ -111,9 +111,6 @@ class TargetedPopupState extends State<TargetedPopup>
   void _scheduleShowOverlay() {
     if (!_isOverlayPresent()) {
       SchedulerBinding.instance?.addPostFrameCallback((timeStamp) {
-        if (_layerLink.leader == null) {
-          return;
-        }
         _controller.forward();
         _overlayEntry = _createOverlayEntry();
         Overlay.of(context)!.insert(_overlayEntry!);
